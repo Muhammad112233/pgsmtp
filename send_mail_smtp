@@ -1,0 +1,127 @@
+import smtplib
+from email.MIMEText import MIMEText
+from email.mime.multipart import MIMEMultipart
+from tabulate import tabulate
+import HTMLParser
+import numpy
+import pandas
+from fpdf import FPDF
+import psycopg2
+
+# find data about sender
+query = "SELECT smtp_server,smtp_port,smtp_pass FROM pgsmtp.user_smtp_data where smtp_user='" +sender + "' LIMIT 1"
+
+# ALI TAG
+
+conn = psycopg2.connect(database="cgtuat", user="postgres", password="123", host="10.65.200.21", port="5432")
+
+print("Database Connected....")
+
+pgquery = "SELECT table_name,srv_date::date,from_date::date,todate::date,amc_ncc_id,total_rec,total_volume,total_value,dist_fund_count,dist_uin_count FROM CGT_MUFAP.AMC_MONTH_WISE_REC_INFO"
+cursor = conn.cursor()
+cursor.execute(pgquery)
+records = cursor.fetchall()
+
+	
+#result1 = plpy.execute(pgquery)
+
+pdf = FPDF('P','mm',(275, 2000));
+pdf.add_page()
+		
+page_width = pdf.w - 2.2 * pdf.l_margin
+		
+pdf.set_font('Times','B',12.0) 
+pdf.cell(page_width, 0.0, 'NCCPL_DATA', align='C')
+pdf.ln(10)
+
+pdf.set_font('Courier', '', 9)
+		
+col_width = page_width/8.6
+		
+pdf.ln(1)
+		
+th = pdf.font_size + 2 
+
+pdf.cell(col_width , th,'table_name',border=1)
+pdf.cell(col_width, th,'srv_date', border=1)
+pdf.cell(col_width, th,'from_date', border=1)
+pdf.cell(col_width, th,'todate', border=1)
+pdf.cell(col_width, th,'amc_ncc_id', border=1)
+pdf.cell(col_width, th,'total_rec', border=1)
+pdf.cell(col_width, th,'total_volume', border=1)
+pdf.cell(col_width, th,'total_value', border=1)
+pdf.cell(col_width, th,'dist_fund_count', border=1)
+pdf.cell(col_width, th,'dist_uin_count', border=1)
+pdf.ln(7)
+
+		
+for row in records:
+			pdf.cell(col_width, th, str(row[0]), border=1)
+			pdf.cell(col_width, th,str(row[1]), border=1)
+			pdf.cell(col_width, th,str(row[2]), border=1)
+			pdf.cell(col_width, th,str(row[3]), border=1)
+			pdf.cell(col_width, th,str(row[4]), border=1)
+			pdf.cell(col_width, th,str(row[5]), border=1)
+			pdf.cell(col_width, th,str(row[6]), border=1)
+			pdf.cell(col_width, th,str(row[7]), border=1)
+			pdf.cell(col_width, th,str(row[8]), border=1)
+			pdf.cell(col_width, th,str(row[9]), border=1)
+			pdf.ln(th)
+		
+pdf.ln(10)
+		
+pdf.set_font('Times','',10.0) 
+pdf.cell(page_width, 0.0, '- end of report -', align='C')
+pdf.output('/home/email/tuto3.pdf', 'F')
+
+emailquery = "SELECT pgsmtp.pg_smtp_mail_attach('admin@nccpl.com.pk'::character varying,'yasir@nccpl.com.pk'::character varying,array['waqas@nccpl.com.pk','faisal@nccpl.com.pk','raheelbaig@nccpl.com.pk','moiz@nccpl.com.pk'],'Report_data'::character varying,'ncccccccccccccpl'::character varying,array['/home/email/tuto3.pdf'])"
+
+plpy.execute(emailquery)
+
+
+
+result = plpy.execute(query)
+if result:
+    ccs = cc
+    # Create mens
+    table = [["Sun",696000,1989100000],["Earth",6371,5973.6],
+               ["Moon",1737,73.5],["Mars",3390,641.85]]
+    content = tabulate(table, headers=["Planet","R (km)", "mass (x 10^29 kg)"])
+    mens = MIMEText(content)
+    ccs = cc
+    
+    print(tabulate(table))
+    print(content)
+    # return tabulate(table)
+    # return content
+	# Conex con el server
+    mens['Subject'] = topic
+    mens['From'] = sender
+    mens['To'] = ', '.join(reciever)
+    mens['Cc'] = ', '.join(cc)
+	#mens.attach(MIMEText(content,'plain'))
+	
+
+    recipients = reciever + cc
+
+    try:
+        # Authenticate
+        serversmtp = smtplib.SMTP(result[0]['smtp_server'],result[0]['smtp_port'])
+        serversmtp.ehlo_or_helo_if_needed()
+        serversmtp.starttls()
+        serversmtp.ehlo_or_helo_if_needed()
+      #  serversmtp.login(sender,result[0]['smtp_pass'])
+
+        # Sending
+      #  serversmtp.sendmail(sender,  recipients, mens.as_string())
+
+        # close conex
+        serversmtp.close()
+        return 'Send'
+
+    except Exception, e:
+        return 'Error , check parameters ', str(e)
+else:
+    return 'Error , no data for sender user, check in table pgsmtp.user_smtp_data'
+ 
+
